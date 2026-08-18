@@ -3,13 +3,13 @@ name: Detect & Sync Lamatic Flows
 on:
   push:
     branches:
-      - main
+      - 'feature1'
     paths:
       - '**/lamatic/flows/**'
   
 jobs:
   detect-flow-changes:
-    environment: main
+    environment: 'feature1'
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, '[LAMATIC-COMMIT]')"
     steps:
@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Sync Flows to lamatic
-        uses: Lamatic/sync-flows-to-lamatic@v1
+        uses: Lamatic/sync-flows-to-lamatic@v1.0.1
         with:
           lamatic-endpoint: ${{ secrets.LAMATIC_PROJECT_ENDPOINT }}
           api-key: ${{ secrets.LAMATIC_PROJECT_API_KEY }}
