@@ -56,7 +56,7 @@ curl -X POST https://your-lamatic-endpoint/graphql \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "x-project-id: YOUR_PROJECT_ID" \
   -d '{
-    "query": "mutation ExecuteWorkflow($workflowId: String!, $payload: JSON!) { executeWorkflow(workflowId: $workflowId, payload: $payload) { status result } }",
+    "query": "query ExecuteWorkflow($workflowId: String!, $payload: JSON!) { executeWorkflow(workflowId: $workflowId, payload: $payload) { status result } }",
     "variables": {
       "workflowId": "YOUR_FLOW_ID",
       "payload": {
@@ -76,8 +76,6 @@ A single JSON object containing:
 {
   "denialSummary": {
     "insurer": "String",
-    "policyNumber": "String or null",
-    "claimNumber": "String or null",
     "serviceDenied": "String",
     "denialAmount": "Number or null",
     "dateOfService": "String or null",
@@ -90,7 +88,7 @@ A single JSON object containing:
   },
   "keyArguments": ["String", "String", "String"],
   "evidenceChecklist": ["String", "String", "String"],
-  "escalationPath": ["String"]
+  "escalationPath": ["String"],
   "deadlineRisk": "high | medium | low | unknown",
   "appealLetter": {
     "subject": "String",

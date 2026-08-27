@@ -6,7 +6,7 @@ This agent helps policyholders understand and respond to insurance claim denials
 
 ## Purpose
 
-Insurance claim denials are common, but most policyholders do not appeal them — often because the process feels overwhelming. This agent lowers that barrier by turning a denial letter into a clear, structured action plan: here is what was denied, here is whether appealing makes sense, here is your draft letter, and here is what to do if it does not.
+Insurance claim denials are common. This agent lowers the barrier to appealing by turning a denial letter into a clear, structured action plan: here is what was denied, here is whether appealing makes sense, here is your draft letter, and here is what to do if it does not.
 
 ## Flows
 
