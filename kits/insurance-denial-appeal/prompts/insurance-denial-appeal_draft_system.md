@@ -27,7 +27,7 @@ Return a JSON object with these fields:
   "letterBody": "<full letter body, 400–800 words>",
   "attachedDocuments": ["<doc 1>", "<doc 2>", "<doc 3>"]
 }
-```json
+```
 
 No extra fields. No preamble.
 

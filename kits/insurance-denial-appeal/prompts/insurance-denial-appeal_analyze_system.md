@@ -36,9 +36,10 @@ Return a JSON object with this structure:
   "keyArguments": ["<arg 1>", "<arg 2>", "<arg 3>"],
   "evidenceChecklist": ["<doc 1>", "<doc 2>", "<doc 3>"],
   "escalationPath": ["<applicable step 1>", "<applicable step 2>", ...],
-  "deadlineRisk": "<high | medium | low | unknown>"
+  "deadlineRisk": "<high | medium | low | unknown>",
+  "recipientName": "<name of the department or person, or null if not identified>"
 }
-```json
+```
 
 No extra fields. No preamble.
 
