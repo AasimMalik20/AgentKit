@@ -48,13 +48,18 @@ Click **Deploy**. Note the Flow ID for API calls.
 
 ### 3. Invoke via API
 
+Use the Lamatic workflow endpoint with your project credentials:
+
 ```bash
 curl -X POST https://your-lamatic-endpoint/graphql \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "x-project-id: YOUR_PROJECT_ID" \
   -d '{
-    "query": "mutation Appeal($input: AppealInput!) { appealDenial(input: $input) { appealLetter { subject letterBody } appealability { score verdict } } }",
+    "query": "mutation ExecuteWorkflow($workflowId: String!, $payload: JSON!) { executeWorkflow(workflowId: $workflowId, payload: $payload) { status result } }",
     "variables": {
-      "input": {
+      "workflowId": "YOUR_FLOW_ID",
+      "payload": {
         "denialLetter": "[paste denial letter text here]",
         "policySummary": "[optional: policy coverage summary]",
         "claimDetails": "[optional: claim date, amount, provider]"
