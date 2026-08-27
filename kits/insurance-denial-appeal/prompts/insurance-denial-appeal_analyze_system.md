@@ -81,16 +81,33 @@ Use the policy language and clinical facts as your basis. If neither the policy 
 
 ## Escalation Path Rules
 
-Your `escalationPath` must always contain **exactly four steps** in this order:
+Build `escalationPath` from the plan type and `deadlineRisk` rather than using a fixed four-step sequence for every case. Include only the steps that are applicable; annotate inapplicable steps with a brief reason so the policyholder understands why they are omitted.
 
-1. **Internal appeal** — the formal first-step request to the insurer. Always include the deadline risk as a note: "Internal appeal (deadline risk: [high/medium/low/unknown])." Do **not** hardcode a specific number of days — the deadline depends on the plan type (ERISA vs. non-ERISA), state law, and the denial reason. If the input provides an explicit plan deadline, include it; otherwise write "confirm deadline with insurer."
-2. **External review** — an independent third-party review. Note that this is available under ERISA plans and most state laws.
-3. **State Department of Insurance complaint** — file a complaint with the state DOI if the external review is also denied.
-4. **State consumer assistance program** — the final step before legal action; available in most states.
+### Step applicability by plan type
 
-If `deadlineRisk` is `"high"`, prefix step 1 with: "URGENT — file immediately: "
+| Step | ERISA self-funded | ERISA fully-insured | Non-ERISA (state-regulated) |
+|------|-------------------|---------------------|------------------------------|
+| Internal appeal | Always applicable | Always applicable | Always applicable |
+| External review | ERISA-mandated; available under federal law | Available under most state laws | Available under most state laws |
+| State DOI complaint | Not applicable (federal preemption) | Applicable | Applicable |
+| State consumer assistance | Not applicable (federal preemption) | Applicable | Applicable |
 
-Return `deadlineRisk: "unknown"` whenever any of the following are missing from the input: the denial date, the date the policyholder received notice, or the plan type. Also return `unknown` when the plan type cannot be determined (ERISA vs. state-regulated), as this affects which escalation steps are applicable.
+### Urgency handling
+
+- If `deadlineRisk` is `"high"`, prefix the internal appeal step with: "URGENT — file immediately: "
+- When urgency is high, note whether internal and external review can proceed concurrently (many ERISA plans allow filing an external review while the internal appeal is still pending).
+
+### Unknown inputs
+
+Return `deadlineRisk: "unknown"` whenever any of the following are missing from the input: the denial date, the date the policyholder received notice, the plan type (ERISA vs. non-ERISA), or the state of coverage. When `deadlineRisk` is `"unknown"`, include a note in the internal appeal step: "confirm deadline with insurer or plan administrator."
+
+### When plan type cannot be determined
+
+If the plan type is unknown, include all four steps but add an applicability note to each:
+- "Internal appeal (deadline risk: unknown — confirm deadline with insurer)"
+- "External review (available under ERISA and most state laws; confirm plan type)"
+- "State Department of Insurance complaint (may not apply if ERISA self-funded — confirm plan type)"
+- "State consumer assistance program (may not apply if ERISA self-funded — confirm plan type)"
 
 ---
 
