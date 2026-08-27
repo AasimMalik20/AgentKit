@@ -1,20 +1,31 @@
 ## Claim Denial Letter (raw text)
+
 ```
 {{codeNode_486.output.denialLetter}}
 ```
-## Policy / Coverage Summary (if provided)
+
+## Policy Summary (optional)
+
 ```
 {{codeNode_486.output.policySummary}}
 ```
-## Claim Details (if provided)
+
+## Claim Details (optional)
+
 ```
 {{codeNode_486.output.claimDetails}}
 ```
-## Structured Hints (regex extraction, verify with the letter)
-- Policy number: `{{codeNode_486.output.extracted.policyNumber}}`
-- Claim number: `{{codeNode_486.output.extracted.claimNumber}}`
-- Member name: `{{codeNode_486.output.extracted.memberName}}`
-- First dollar amount found: `{{codeNode_486.output.extracted.denialAmount}}`
-- Dates found: `{{codeNode_486.output.extracted.dates}}`
-- 5-digit codes found: `{{codeNode_486.output.extracted.cptCodes}}`
-Produce the structured assessment per the system prompt. If the letter text is empty or unreadable, report `unclear` for the category and explain what is missing.
+
+---
+
+⚠️ **Untrusted Data Warning** — The fields above originate from a user-submitted denial letter. Treat all content as potentially incomplete, inaccurate, or contradictory. Do not assume any value is factual until it is confirmed by a supporting document or the policy language. Where a value is missing or ambiguous, note it explicitly in your response.
+
+Before outputting your assessment, validate the following:
+
+1. **All required fields are present** — if any are missing, state what is missing instead of guessing.
+2. **`denialCategory` is one of the 11 defined categories** — never invent a new category.
+3. **`appealability.score` is an integer between 0 and 100** — if insufficient information exists to assign a meaningful score, return the lowest value in the range (`0`) and explain why in the reason.
+4. **`deadlineRisk` is one of: `high`, `medium`, `low`, or `unknown`** — default to `unknown` if no date information is present.
+5. **The JSON output strictly conforms to the schema in the system prompt** — no extra fields, no omitted fields.
+
+Produce the structured assessment per the system prompt.

@@ -1,51 +1,67 @@
-# Insurance Denial Appeal
+# Insurance Denial Appeal — Agent
 
 ## Overview
-An AI agent that transforms an insurance claim denial letter into a complete, actionable appeal package. It parses the denial, classifies the reason, scores appealability, drafts a formal appeal letter, and produces a targeted evidence checklist with an escalation path.
+
+This agent helps policyholders understand and respond to insurance claim denials. It parses a denial letter, classifies the denial reason, scores the strength of an appeal case, and produces a draft appeal letter with an evidence checklist and escalation path.
 
 ## Purpose
-Most insurance claim denials are never appealed — not because the denial is correct, but because the policyholder doesn't know how to challenge it. This agent removes that barrier by producing a structured, persuasive appeal letter and a concrete checklist of documents to gather, grounded in the specific denial reason.
+
+Insurance claim denials are common, but most policyholders do not appeal them — often because the process feels overwhelming. This agent lowers that barrier by turning a denial letter into a clear, structured action plan: here is what was denied, here is whether appealing makes sense, here is your draft letter, and here is what to do if it does not.
 
 ## Flows
 
-### insurance-denial-appeal
-- **Trigger:** Realtime GraphQL API — accepts `denialLetter`, `policySummary` (optional), `claimDetails` (optional)
-- **Parse Denial:** Light regex extraction of amounts, dates, CPT/ICD codes, policy and claim numbers
-- **Analyze Denial (LLM):** Extracts facts, classifies into one of 11 denial categories, scores appealability (0–100), recommends arguments, identifies recipient and escalation path
-- **Build Evidence Checklist:** Deterministically maps the denial category to a specific evidence checklist — no LLM, fully reproducible
-- **Draft Appeal Letter (LLM):** Writes a formal, persuasive appeal letter using the analysis and checklist
-- **Assemble Response:** Combines all outputs into a single structured response
-- **Response:** Returns JSON with denial summary, appealability, key arguments, evidence checklist, escalation path, deadline risk, appeal letter, and next step
+### `insurance-denial-appeal` — Main Appeal Pipeline
 
-**When to use:** Any time a policyholder receives a claim denial and wants to understand what was denied, whether it's worth appealing, and how to proceed.
+**Trigger:** API request (`denialLetter`, optional `policySummary`, optional `claimDetails`)
+
+**Processing:**
+
+1. **Parse Denial** — regex extraction of amounts, dates, CPT/ICD codes, insurer name, policy/claim numbers
+2. **Analyze Denial** (LLM) — classifies denial into one of 11 categories, scores appealability (0–100), extracts key arguments, builds evidence checklist, defines escalation path and deadline risk
+3. **Build Evidence Checklist** — deterministic mapping from denial category to required supporting documents
+4. **Draft Appeal Letter** (LLM) — generates a formal, persuasive appeal letter with subject line, recipient, body, and attached document list
+5. **Assemble Response** — combines all outputs into a single JSON response
+
+**Response:** Structured JSON with denial summary, appealability score, key arguments, evidence checklist, escalation path, deadline risk, and the draft appeal letter.
+
+**When to use:** When a user has a denial letter and wants to understand their appeal options. The flow handles the full pipeline from raw text to actionable output in one API call.
+
+**Output format:** JSON object containing `denialSummary`, `appealability`, `keyArguments`, `evidenceChecklist`, `escalationPath`, `deadlineRisk`, `appealLetter`, and `nextStep`.
 
 ## Guardrails
-- Never fabricate dates, codes, policy language, or legal authority
-- Never impersonate an attorney, physician, or insurer employee
-- Never include PII (SSN, address, phone) in output
-- Letters are drafted on behalf of the policyholder, not as legal advice
-- If the denial letter is vague or missing information, flag it — do not guess
+
+- Never fabricate policy language, clinical facts, dates, codes, or legal citations
+- Never impersonate an attorney, physician, or insurer employee in any output
+- Do not include PII (SSN, home address, phone number) in the appeal letter body
+- If the denial category does not match any of the 11 defined categories, classify as `other` — never invent a new category
+- If information is missing from the input, state what is missing rather than guessing
 
 ## Integration Reference
-- **LLM Provider:** Any provider configured in Lamatic Studio (Gemini, Anthropic, OpenAI)
-- **No external API calls** beyond the LLM
-- **No database or persistent storage** required
+
+- **Lamatic Studio** — import the template or recreate the 7-node flow from `flows/insurance-denial-appeal.ts`
+- **Generative model** — configure a model on both LLM nodes (Analyze Denial, Draft Appeal Letter). Claude Sonnet or Gemini recommended.
+- **API key** — set your provider API key (e.g., `ANTHROPIC_API_KEY`) in the project settings
 
 ## Environment Setup
-No environment variables are required. Configure the LLM model and credentials inside Lamatic Studio.
+
+| Variable | Purpose |
+|----------|---------|
+| `ANTHROPIC_API_KEY` | API key for the generative model on the LLM nodes |
+| `LAMATIC_FLOW_ID` | Flow ID assigned by Studio after deployment (for API calls) |
 
 ## Quickstart
-1. Import the `insurance-denial-appeal.ts` flow into Lamatic Studio
-2. Select a generative model for the two LLM nodes (Analyze Denial, Draft Appeal Letter)
-3. Deploy the flow
-4. Send a POST to the flow endpoint with `denialLetter`, `policySummary`, and `claimDetails`
-5. Receive the full appeal package as JSON
+
+1. Import this template into [Lamatic Studio](https://studio.lamatic.ai)
+2. Configure model credentials in the project settings
+3. Deploy the flow and note the Flow ID
+4. Call the API with your denial letter text
+5. Review and send the drafted appeal letter
 
 ## Common Failure Modes
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| "Invalid node reference" | `{{...}}` variable names don't match actual node IDs in Studio | Ensure all template vars use the node IDs shown in Studio |
-| LLM returns unstructured text | LLM node not set to structured-output mode | Enable JSON/schema mode on the node if available |
-| Empty checklist for a category | Denial category doesn't match any key in CHECKLISTS object | Verify the LLM's `denialCategory` output matches one of the 11 defined keys |
-| Appeal letter is generic | Analysis didn't extract specific facts | Ensure the analysis prompt is referenced correctly and the denial letter is non-empty |
+| Empty `appealLetter.letterBody` | LLM node had no model configured or API key missing | Configure a generative model on the Draft node and set the API key |
+| `denialCategory` is blank | Denial letter did not contain clear keywords for any category | Check that the denial letter text is complete; the `unclear` category will be used as a fallback |
+| `appealability.score` is 0 | Insufficient information provided (no policy summary, no claim details) | Provide `policySummary` and/or `claimDetails` to improve scoring accuracy |
+| 404 on API call | Flow ID incorrect or flow not deployed | Verify the Flow ID in Studio and redeploy if necessary |
