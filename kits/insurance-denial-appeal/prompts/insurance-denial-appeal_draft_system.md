@@ -50,20 +50,27 @@ No extra fields. No preamble.
 ### 3. Structure
 
 - **Subject line**: "Appeal of Claim [claim number] — Denial of [service], Date of Service [date]"
-- **Opening**: State that you are appealing the denial, reference the claim number and date of service, and state the overall position (the denial is incorrect).
+  - If `claimNumber` is null, write: "Appeal of Claim — Denial of [service]"
+  - If `dateOfService` is null, write: "Appeal of Claim [claim number] — Denial of [service]"
+  - If both are null, write: "Appeal of Denied Claim — [service description]"
+- **Opening**: State that you are appealing the denial, reference the claim number and date of service (or note that these details are unavailable), and state the overall position.
 - **Body**: Use the key arguments from the analysis. Quote the policy language where relevant. Address the denial reason directly.
-- **Closing**: Request a specific outcome (full approval / coverage), reference the attached evidence, and state the deadline awareness.
+- **Closing**: Request a specific outcome, reference the evidence you are submitting (include/attach the documents listed in attachedDocuments), and state the deadline awareness.
 
 ### 4. Handle missing or uncertain information
 
-- If the policy summary was not provided or does not mention the denied service, write: "I believe this service is covered under my plan's provisions for [service type]. I request that you confirm this in writing."
+- If the policy summary was not provided or does not mention the denied service, write: "I request that you confirm in writing whether this service is covered under my plan's provisions." Do not assert that it is covered.
 - Do not fabricate policy language or cite a section you have not been given.
 
 ### 5. Low-appealability branch
 
-- If the appealability score is **≤ 40**, still draft the letter but add a final paragraph that clearly states: "I understand the insurer's position, but I am filing this appeal because [specific reason from the analysis]. If this appeal is denied, I intend to pursue [next step from the escalation path]."
+- If the appealability score is **1–40** and the verdict is `low-case` or `moderate-case`, draft the letter but add a final paragraph that clearly states: "I understand the insurer's position, but I am filing this appeal because [specific reason from the analysis]. If this appeal is denied, I intend to pursue [next step from the escalation path]."
 - Do not give up — the letter still matters. The low score reflects the strength of the case, not the right to appeal.
 
-### 6. "To verify" handling
+### 6. No-appeal branch
 
-- If the analysis flagged any facts as "to verify," do **not** assert those facts in the letter. Instead, write: "The facts regarding [topic] remain to be confirmed; I have attached the available documentation and will provide further evidence upon request."
+- If the verdict is `no-appeal` (score 0), do **not** draft a persuasive appeal letter. Instead, produce a neutral summary: state what the denial was for, why the analysis found no strong basis for appeal, and what the escalation path recommends (e.g., filing a state DOI complaint or seeking independent counsel). The tone should be informative, not persuasive.
+
+### 7. "To verify" handling
+
+- If the analysis flagged any facts as "to verify," do **not** assert those facts in the letter. Instead, write: "The facts regarding [topic] remain to be confirmed; I will include the available documentation and can provide further evidence upon request."

@@ -62,6 +62,6 @@ Insurance claim denials are common, but most policyholders do not appeal them â€
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | Empty `appealLetter.letterBody` | LLM node had no model configured or API key missing | Configure a generative model on the Draft node and set the API key |
-| `denialCategory` is blank | Denial letter did not contain clear keywords for any category | Check that the denial letter text is complete; the `unclear` category will be used as a fallback |
+| `denialCategory` is blank | Denial letter did not contain clear keywords for any category | Check that the denial letter text is complete; the `other` category will be used as a fallback |
 | `appealability.score` is 0 | Insufficient information provided (no policy summary, no claim details) | Provide `policySummary` and/or `claimDetails` to improve scoring accuracy |
 | 404 on API call | Flow ID incorrect or flow not deployed | Verify the Flow ID in Studio and redeploy if necessary |

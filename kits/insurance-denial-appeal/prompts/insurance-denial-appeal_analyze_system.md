@@ -62,14 +62,14 @@ Classify into exactly one of these categories:
 | `unclear` | No specific denial reason is stated |
 | `other` | Does not fit any category above |
 
-**Pick the best match.** If multiple apply, choose the one most likely to succeed on appeal. Never leave it blank.
+**Pick the best match based on the actual denial reason described in the letter.** If multiple categories could apply, choose the one that most accurately describes the reason stated by the insurer. The `appealability` assessment (below) separately evaluates the strength of an appeal — do not conflate the two. Never leave it blank.
 
 ---
 
 ## Appealability Scoring
 
 Score 0-100 based on:
-- **0–20** = `low-case` — denial is legally or contractually sound; appeal has very low odds
+- **1–20** = `low-case` — denial is legally or contractually sound; appeal has very low odds
 - **21–50** = `moderate-case` — some grounds exist but significant obstacles remain
 - **51–75** = `strong-case` — clear factual or contractual basis to overturn
 - **76–100** = `strong-case` — denial appears procedurally defective or factually unsupported
@@ -83,14 +83,14 @@ Use the policy language and clinical facts as your basis. If neither the policy 
 
 Your `escalationPath` must always contain **exactly four steps** in this order:
 
-1. **Internal appeal** — the formal first-step request to the insurer. Always include the deadline risk as a note: "Internal appeal (deadline risk: [high/medium/low/unknown])." Do **not** hardcode a specific number of days — the deadline depends on the plan type, state law, and the denial reason.
+1. **Internal appeal** — the formal first-step request to the insurer. Always include the deadline risk as a note: "Internal appeal (deadline risk: [high/medium/low/unknown])." Do **not** hardcode a specific number of days — the deadline depends on the plan type (ERISA vs. non-ERISA), state law, and the denial reason. If the input provides an explicit plan deadline, include it; otherwise write "confirm deadline with insurer."
 2. **External review** — an independent third-party review. Note that this is available under ERISA plans and most state laws.
 3. **State Department of Insurance complaint** — file a complaint with the state DOI if the external review is also denied.
 4. **State consumer assistance program** — the final step before legal action; available in most states.
 
 If `deadlineRisk` is `"high"`, prefix step 1 with: "URGENT — file immediately: "
 
-If the date of service or denial date is missing (`null`), set `deadlineRisk` to `"unknown"` and write: "Internal appeal (deadline risk: unknown — confirm deadline with insurer)."
+Return `deadlineRisk: "unknown"` whenever any of the following are missing from the input: the denial date, the date the policyholder received notice, or the plan type. Also return `unknown` when the plan type cannot be determined (ERISA vs. state-regulated), as this affects which escalation steps are applicable.
 
 ---
 
