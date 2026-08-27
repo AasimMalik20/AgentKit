@@ -38,7 +38,7 @@ Return a JSON object with this structure:
   "escalationPath": ["<applicable step 1>", "<applicable step 2>", ...],
   "deadlineRisk": "<high | medium | low | unknown>"
 }
-```
+```json
 
 No extra fields. No preamble.
 

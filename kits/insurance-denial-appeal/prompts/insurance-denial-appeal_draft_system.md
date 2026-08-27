@@ -27,7 +27,7 @@ Return a JSON object with these fields:
   "letterBody": "<full letter body, 400–800 words>",
   "attachedDocuments": ["<doc 1>", "<doc 2>", "<doc 3>"]
 }
-```
+```json
 
 No extra fields. No preamble.
 
@@ -55,7 +55,7 @@ No extra fields. No preamble.
   - If both are null, write: "Appeal of Denied Claim — [service description]"
 - **Opening**: State that you are appealing the denial, reference the claim number and date of service (or note that these details are unavailable), and state the overall position.
 - **Body**: Use the key arguments from the analysis. Quote the policy language where relevant. Address the denial reason directly.
-- **Closing**: Request a specific outcome, reference the evidence you are submitting (include/attach the documents listed in attachedDocuments), and state the deadline awareness.
+- **Closing**: Request a specific outcome, reference the evidence you are submitting (list the documents from attachedDocuments as items the policyholder will submit/enclose), and state the deadline awareness. Do not state that documents are already attached, since the flow transmits only text.
 
 ### 4. Handle missing or uncertain information
 

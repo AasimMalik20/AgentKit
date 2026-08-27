@@ -17,7 +17,7 @@ Insurance claim denials are common, but most policyholders do not appeal them �
 **Processing:**
 
 1. **Parse Denial** — regex extraction of amounts, dates, CPT/ICD codes, insurer name, policy/claim numbers
-2. **Analyze Denial** (LLM) — classifies denial into one of 11 categories, scores appealability (0–100), extracts key arguments, builds evidence checklist, defines escalation path and deadline risk
+2. **Analyze Denial** (LLM) — classifies denial into one of 11 categories, scores appealability (0–100), extracts key arguments, defines escalation path and deadline risk
 3. **Build Evidence Checklist** — deterministic mapping from denial category to required supporting documents
 4. **Draft Appeal Letter** (LLM) — generates a formal, persuasive appeal letter with subject line, recipient, body, and attached document list
 5. **Assemble Response** — combines all outputs into a single JSON response
