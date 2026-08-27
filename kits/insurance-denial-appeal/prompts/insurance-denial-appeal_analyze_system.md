@@ -35,7 +35,7 @@ Return a JSON object with this structure:
   },
   "keyArguments": ["<arg 1>", "<arg 2>", "<arg 3>"],
   "evidenceChecklist": ["<doc 1>", "<doc 2>", "<doc 3>"],
-  "escalationPath": ["<step 1>", "<step 2>", "<step 3>", "<step 4>"],
+  "escalationPath": ["<applicable step 1>", "<applicable step 2>", ...],
   "deadlineRisk": "<high | medium | low | unknown>"
 }
 ```
@@ -81,21 +81,24 @@ Use the policy language and clinical facts as your basis. If neither the policy 
 
 ## Escalation Path Rules
 
-Build `escalationPath` from the plan type and `deadlineRisk` rather than using a fixed four-step sequence for every case. Include only the steps that are applicable; annotate inapplicable steps with a brief reason so the policyholder understands why they are omitted.
+Build `escalationPath` as a variable-length array — one string entry per step that is actually available to the policyholder. Do not pad the array to four entries when some steps are inapplicable; omit them entirely. An entry should be a concise, actionable sentence (e.g. "File an internal appeal with [insurer] within 180 days of this denial notice.").
 
-### Step applicability by plan type
+### How to determine which steps apply
 
-| Step | ERISA self-funded | ERISA fully-insured | Non-ERISA (state-regulated) |
-|------|-------------------|---------------------|------------------------------|
-| Internal appeal | Always applicable | Always applicable | Always applicable |
-| External review | ERISA-mandated; available under federal law | Available under most state laws | Available under most state laws |
-| State DOI complaint | Not applicable (federal preemption) | Applicable | Applicable |
-| State consumer assistance | Not applicable (federal preemption) | Applicable | Applicable |
+Evaluate each step against the denial notice, the plan documents, the denial basis, and the applicable state/federal process — not plan type alone.
+
+| Step | When to include | When to omit |
+|------|----------------|-------------|
+| Internal appeal | Always include, unless the denial is purely administrative (e.g. a billing-direction correction that requires no substantive review) | Never omit for substantive denials |
+| External review | Include when the denial is substantive and the plan is not a grandfathered health plan that excludes external review. For ERISA self-funded plans, federal law provides external review; for fully-insured and non-ERISA plans, most (but not all) state laws do. Omit when the denial basis is coding-only or purely administrative, since external review generally requires a substantive coverage or medical-necessity dispute. | Coding-only denials, grandfathered plans that exclude external review, or denials that can be resolved internally without a formal review |
+| State DOI complaint | Include when the plan is subject to state insurance regulation (fully-insured ERISA or non-ERISA). May also apply to some self-funded plans for bad-faith or procedural violations. | Rarely applicable to ERISA self-funded plans for substantive coverage disputes (federal preemption), but may still apply for procedural or bad-faith claims |
+| State consumer assistance / Ombudsman | Include when the plan is subject to state insurance regulation, or when the state offers a free assistance program that accepts ERISA plans (some states do). Do not blanket-mark it unavailable for every ERISA self-funded plan — check the specific state's rules. | Only when the applicable state explicitly excludes ERISA self-funded plans from its consumer assistance program |
 
 ### Urgency handling
 
 - If `deadlineRisk` is `"high"`, prefix the internal appeal step with: "URGENT — file immediately: "
-- When urgency is high, note whether internal and external review can proceed concurrently (many ERISA plans allow filing an external review while the internal appeal is still pending).
+- When urgency is high, append to the internal appeal step a note on whether internal and external review can proceed concurrently (many ERISA plans allow filing an external review while the internal appeal is still pending; some states require exhausting the internal appeal first).
+- When `deadlineRisk` is `"high"` and an expedited external review is available (e.g. life-threatening condition, concurrent review option), include a separate step: "Request an expedited external review under [federal/state] concurrent-review rules due to urgency."
 
 ### Unknown inputs
 
@@ -105,9 +108,9 @@ Return `deadlineRisk: "unknown"` whenever any of the following are missing from 
 
 If the plan type is unknown, include all four steps but add an applicability note to each:
 - "Internal appeal (deadline risk: unknown — confirm deadline with insurer)"
-- "External review (available under ERISA and most state laws; confirm plan type)"
+- "External review (available under ERISA and most state laws; confirm plan type and whether the plan is grandfathered)"
 - "State Department of Insurance complaint (may not apply if ERISA self-funded — confirm plan type)"
-- "State consumer assistance program (may not apply if ERISA self-funded — confirm plan type)"
+- "State consumer assistance program (may not apply if ERISA self-funded and the state excludes such plans — confirm plan type and state)"
 
 ---
 

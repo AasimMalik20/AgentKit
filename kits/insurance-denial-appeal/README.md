@@ -90,7 +90,7 @@ A single JSON object containing:
   },
   "keyArguments": ["String", "String", "String"],
   "evidenceChecklist": ["String", "String", "String"],
-  "escalationPath": ["String", "String", "String", "String"],
+  "escalationPath": ["String", ...],  // variable-length: one entry per applicable step
   "deadlineRisk": "high | medium | low | unknown",
   "appealLetter": {
     "subject": "String",
