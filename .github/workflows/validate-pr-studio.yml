@@ -30,6 +30,14 @@ jobs:
       issues: write
 
     steps:
+      - name: Checkout PR head (with allow-unsafe-pr-checkout for workflow_run)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'issue_comment' && github.event.pull_request.head.sha || github.event.workflow_run.head_sha }}
+          repository: ${{ github.event_name == 'issue_comment' && github.event.pull_request.head.repo.full_name || github.repository }}
+          fetch-depth: 0
+          allow-unsafe-pr-checkout: true
+
       - name: Get PR details (for comment trigger)
         id: pr_info
         if: github.event_name == 'issue_comment'
@@ -59,87 +67,82 @@ jobs:
             --method POST \
             -f body=":satellite: Running Studio validation — results will appear here shortly." || true
 
-      - name: Checkout PR head
+      - name: Checkout PR head (workflow_run)
+        if: github.event_name == 'workflow_run'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ "${{ github.event_name }}" = "issue_comment" ]; then
-            sha="${{ steps.pr_info.outputs.head_sha }}"
-            fork_url="${{ steps.pr_info.outputs.fork_url }}"
-          else
-            # For workflow_run events, github.event.workflow_run.head_sha is the
-            # base repo's main branch SHA, not the PR head. We must fetch PR info
-            # from the GitHub API using the triggering actor and repository.
-            echo "Event: ${{ github.event_name }}"
-            echo "Repository: ${{ github.repository }}"
-            echo "Triggering actor: ${{ github.event.triggering_actor.login }}"
-            echo "Workflow run head_sha: ${{ github.event.workflow_run.head_sha }}"
-            echo "Workflow run head_branch: ${{ github.event.workflow_run.head_branch }}"
-            
-            # Use GitHub API to get PR list
-            PR_DATA=$(curl -s "https://api.github.com/repos/${{ github.repository }}/pulls?state=open&sort=updated&per_page=100" \
-              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-              -H "Accept: application/vnd.github.v3+json" 2>/dev/null || echo "[]")
-            echo "PR data length: ${#PR_DATA}"
-            echo "PR data preview: ${PR_DATA:0:200}"
-            
-            # Extract PR SHA using node
-            PR_SHA=$(echo "$PR_DATA" | node -e "
-              let d = '';
-              process.stdin.on('data', c => d += c);
-              process.stdin.on('end', () => {
-                try {
-                  const pulls = JSON.parse(d);
-                  const actor = '${{ github.event.triggering_actor.login }}';
-                  console.log('Found', pulls.length, 'open PRs');
-                  const pr = pulls.find(p => p.user.login === actor);
-                  if (pr) {
-                    console.log('PR found:', pr.number, 'SHA:', pr.head.sha);
-                    console.log(pr.head.sha);
-                  } else {
-                    console.log('No PR found for actor:', actor);
-                    console.log('');
-                  }
-                } catch(e) { 
-                  console.error('Error:', e.message);
-                  console.log(''); 
+          # For workflow_run events, github.event.workflow_run.head_sha is the
+          # base repo's main branch SHA, not the PR head. We must fetch PR info
+          # from the GitHub API using the triggering actor and repository.
+          echo "Event: ${{ github.event_name }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "Triggering actor: ${{ github.event.triggering_actor.login }}"
+          echo "Workflow run head_sha: ${{ github.event.workflow_run.head_sha }}"
+          echo "Workflow run head_branch: ${{ github.event.workflow_run.head_branch }}"
+          
+          # Use GitHub API to get PR list
+          PR_DATA=$(curl -s "https://api.github.com/repos/${{ github.repository }}/pulls?state=open&sort=updated&per_page=100" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" 2>/dev/null || echo "[]")
+          echo "PR data length: ${#PR_DATA}"
+          echo "PR data preview: ${PR_DATA:0:200}"
+          
+          # Extract PR SHA using node
+          PR_SHA=$(echo "$PR_DATA" | node -e "
+            let d = '';
+            process.stdin.on('data', c => d += c);
+            process.stdin.on('end', () => {
+              try {
+                const pulls = JSON.parse(d);
+                const actor = '${{ github.event.triggering_actor.login }}';
+                console.log('Found', pulls.length, 'open PRs');
+                const pr = pulls.find(p => p.user.login === actor);
+                if (pr) {
+                  console.log('PR found:', pr.number, 'SHA:', pr.head.sha);
+                  console.log(pr.head.sha);
+                } else {
+                  console.log('No PR found for actor:', actor);
+                  console.log('');
                 }
-              });
-            ")
-            
-            if [ -z "$PR_SHA" ]; then
-              echo "ERROR: Could not find PR SHA from API"
-              exit 1
-            fi
-            
-            # Get fork URL from PR head repo
-            fork_url=$(echo "$PR_DATA" | node -e "
-              let d = '';
-              process.stdin.on('data', c => d += c);
-              process.stdin.on('end', () => {
-                try {
-                  const pulls = JSON.parse(d);
-                  const pr = pulls.find(p => p.head.sha === '$PR_SHA');
-                  if (pr) {
-                    console.log(pr.head.repo.clone_url);
-                  } else {
-                    console.log('${{ github.repository }}.git');
-                  }
-                } catch(e) { 
-                  console.log('${{ github.repository }}.git'); 
-                }
-              });
-            ")
-            
-            echo "PR SHA: $PR_SHA"
-            echo "Fork URL: $fork_url"
+              } catch(e) { 
+                console.error('Error:', e.message);
+                console.log(''); 
+              }
+            });
+          ")
+          
+          if [ -z "$PR_SHA" ]; then
+            echo "ERROR: Could not find PR SHA from API"
+            exit 1
           fi
           
-          # Clone the base repo, then fetch the PR head commit from the fork.
-          git clone --depth 1 "https://github.com/${{ github.repository }}.git" .
-          git remote add fork "$fork_url"
-          git fetch fork "$sha"
-          git checkout "$sha"
+          # Get fork URL from PR head repo
+          fork_url=$(echo "$PR_DATA" | node -e "
+            let d = '';
+            process.stdin.on('data', c => d += c);
+            process.stdin.on('end', () => {
+              try {
+                const pulls = JSON.parse(d);
+                const pr = pulls.find(p => p.head.sha === '$PR_SHA');
+                if (pr) {
+                  console.log(pr.head.repo.clone_url);
+                } else {
+                  console.log('${{ github.repository }}.git');
+                }
+              } catch(e) { 
+                console.log('${{ github.repository }}.git'); 
+              }
+            });
+          ")
+          
+          echo "PR SHA: $PR_SHA"
+          echo "Fork URL: $fork_url"
+          
+          # Fetch the PR head commit from the fork
+          git fetch origin "refs/pull/${{ github.event.workflow_run.pull_requests[0].number }}/head" 2>/dev/null || \
+            git fetch "$fork_url" "$PR_SHA"
+          git checkout "$PR_SHA"
 
       - name: Setup Node
         uses: actions/setup-node@v4
