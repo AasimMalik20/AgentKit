@@ -73,49 +73,68 @@ jobs:
             # For workflow_run events, github.event.workflow_run.head_sha is the
             # base repo's main branch SHA, not the PR head. We must fetch PR info
             # from the GitHub API using the triggering actor and repository.
-            # Use gh api to get PR list and extract the PR head SHA.
+            echo "Event: ${{ github.event_name }}"
+            echo "Repository: ${{ github.repository }}"
+            echo "Triggering actor: ${{ github.event.triggering_actor.login }}"
+            echo "Workflow run head_sha: ${{ github.event.workflow_run.head_sha }}"
+            echo "Workflow run head_branch: ${{ github.event.workflow_run.head_branch }}"
+            
+            # Use gh api to get the specific PR for this actor
             PR_DATA=$(gh api "repos/${{ github.repository }}/pulls?state=open&sort=updated&per_page=100" 2>/dev/null || echo "[]")
-            # Extract PR SHA using jq if available, otherwise use node
-            if command -v jq &>/dev/null; then
-              PR_SHA=$(echo "$PR_DATA" | jq -r --arg actor "${{ github.event.triggering_actor.login }}" '[.[] | select(.user.login == $actor)] | .[0] | .head.sha // ""')
-            else
-              PR_SHA=$(echo "$PR_DATA" | node -e "
-                let d = '';
-                process.stdin.on('data', c => d += c);
-                process.stdin.on('end', () => {
-                  try {
-                    const pulls = JSON.parse(d);
-                    const actor = '${{ github.event.triggering_actor.login }}';
-                    const pr = pulls.find(p => p.user.login === actor);
-                    console.log(pr ? pr.head.sha : '');
-                  } catch(e) { console.log(''); }
-                });
-              ")
+            echo "PR data length: ${#PR_DATA}"
+            
+            # Extract PR SHA using node (more reliable than jq in this context)
+            PR_SHA=$(echo "$PR_DATA" | node -e "
+              let d = '';
+              process.stdin.on('data', c => d += c);
+              process.stdin.on('end', () => {
+                try {
+                  const pulls = JSON.parse(d);
+                  const actor = '${{ github.event.triggering_actor.login }}';
+                  console.log('Found', pulls.length, 'open PRs');
+                  const pr = pulls.find(p => p.user.login === actor);
+                  if (pr) {
+                    console.log('PR found:', pr.number, 'SHA:', pr.head.sha);
+                    console.log(pr.head.sha);
+                  } else {
+                    console.log('No PR found for actor:', actor);
+                    console.log('');
+                  }
+                } catch(e) { 
+                  console.error('Error:', e.message);
+                  console.log(''); 
+                }
+              });
+            ")
+            
+            if [ -z "$PR_SHA" ]; then
+              echo "ERROR: Could not find PR SHA from API"
+              exit 1
             fi
+            
             # Get fork URL from PR head repo
-            if [ -n "$PR_SHA" ] && [ "$PR_SHA" != "null" ]; then
-              if command -v jq &>/dev/null; then
-                fork_url=$(echo "$PR_DATA" | jq -r --arg sha "$PR_SHA" '[.[] | select(.head.sha == $sha)] | .[0] | .head.repo.clone_url // "${{ github.repository }}.git"')
-              else
-                fork_url=$(echo "$PR_DATA" | node -e "
-                  let d = '';
-                  process.stdin.on('data', c => d += c);
-                  process.stdin.on('end', () => {
-                    try {
-                      const pulls = JSON.parse(d);
-                      const sha = '${PR_SHA}';
-                      const pr = pulls.find(p => p.head.sha === sha);
-                      console.log(pr ? pr.head.repo.clone_url : '${{ github.repository }}.git');
-                    } catch(e) { console.log('${{ github.repository }}.git'); }
-                  });
-                ")
-              fi
-            else
-              fork_url="${{ github.repository }}.git"
-            fi
-            sha="$PR_SHA"
+            fork_url=$(echo "$PR_DATA" | node -e "
+              let d = '';
+              process.stdin.on('data', c => d += c);
+              process.stdin.on('end', () => {
+                try {
+                  const pulls = JSON.parse(d);
+                  const pr = pulls.find(p => p.head.sha === '$PR_SHA');
+                  if (pr) {
+                    console.log(pr.head.repo.clone_url);
+                  } else {
+                    console.log('${{ github.repository }}.git');
+                  }
+                } catch(e) { 
+                  console.log('${{ github.repository }}.git'); 
+                }
+              });
+            ")
+            
+            echo "PR SHA: $PR_SHA"
+            echo "Fork URL: $fork_url"
           fi
-          echo "Checking out SHA: $sha from fork: $fork_url"
+          
           # Clone the base repo, then fetch the PR head commit from the fork.
           # actions/checkout blocks fork PR code in workflow_run contexts (pwn-request
           # prevention); explicit git clone+fetch bypasses this restriction.
