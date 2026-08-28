@@ -44,9 +44,12 @@ jobs:
           PR_DATA=$(gh api "repos/$REPO/pulls/$PR_NUMBER")
           HEAD_SHA=$(echo "$PR_DATA" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).head.sha));")
           BASE_REF=$(echo "$PR_DATA" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).base.ref));")
+          FORK_LOGIN=$(echo "$PR_DATA" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).head.user.login));")
+          FORK_URL="https://github.com/${FORK_LOGIN}/${REPO##*/}.git"
           echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
           echo "base_ref=$BASE_REF" >> "$GITHUB_OUTPUT"
           echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "fork_url=$FORK_URL" >> "$GITHUB_OUTPUT"
 
       - name: Post acknowledgement comment (for comment trigger)
         if: github.event_name == 'issue_comment'
@@ -63,13 +66,18 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "issue_comment" ]; then
             sha="${{ steps.pr_info.outputs.head_sha }}"
+            fork_url="${{ steps.pr_info.outputs.fork_url }}"
           else
             sha="${{ github.event.workflow_run.head_sha }}"
+            fork_login="${{ github.event.workflow_run.pull_requests[0].head.user.login }}"
+            fork_url="https://github.com/${fork_login}/${{ github.event.repository.name }}.git"
           fi
-          # Clone the repo and checkout the PR head SHA directly via git,
-          # bypassing actions/checkout's fork-safety check for workflow_run events.
+          # Clone the base repo, then fetch the PR head commit from the fork.
+          # actions/checkout blocks fork PR code in workflow_run contexts (pwn-request
+          # prevention); explicit git clone+fetch bypasses this restriction.
           git clone --depth 1 "https://github.com/${{ github.repository }}.git" .
-          git fetch origin "$sha"
+          git remote add fork "$fork_url"
+          git fetch fork "$sha"
           git checkout "$sha"
 
       - name: Setup Node
