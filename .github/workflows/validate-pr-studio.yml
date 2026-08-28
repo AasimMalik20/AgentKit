@@ -30,13 +30,11 @@ jobs:
       issues: write
 
     steps:
-      - name: Checkout PR head (with allow-unsafe-pr-checkout for workflow_run)
+      - name: Checkout base repo
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
-          repository: ${{ github.event.workflow_run.head_repository.full_name || github.repository }}
-          fetch-depth: 0
-          allow-unsafe-pr-checkout: true
+          ref: main
+          fetch-depth: 1
 
       - name: Get PR details (for comment trigger)
         id: pr_info
@@ -67,7 +65,7 @@ jobs:
             --method POST \
             -f body=":satellite: Running Studio validation — results will appear here shortly." || true
 
-      - name: Checkout PR head (workflow_run)
+      - name: Fetch PR head (for workflow_run)
         if: github.event_name == 'workflow_run'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -140,8 +138,8 @@ jobs:
           echo "Fork URL: $fork_url"
           
           # Fetch the PR head commit from the fork
-          git fetch origin "refs/pull/${{ github.event.workflow_run.pull_requests[0].number }}/head" 2>/dev/null || \
-            git fetch "$fork_url" "$PR_SHA"
+          git remote add fork "$fork_url" 2>/dev/null || true
+          git fetch fork "$PR_SHA"
           git checkout "$PR_SHA"
 
       - name: Setup Node
