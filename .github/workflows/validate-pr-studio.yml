@@ -60,11 +60,17 @@ jobs:
             -f body=":satellite: Running Studio validation — results will appear here shortly." || true
 
       - name: Checkout PR head
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'issue_comment' && steps.pr_info.outputs.head_sha || github.event.workflow_run.head_branch }}
-          fetch-depth: 0
-          allow-unsafe-pr-checkout: true
+        run: |
+          if [ "${{ github.event_name }}" = "issue_comment" ]; then
+            sha="${{ steps.pr_info.outputs.head_sha }}"
+          else
+            sha="${{ github.event.workflow_run.head_sha }}"
+          fi
+          # Clone the repo and checkout the PR head SHA directly via git,
+          # bypassing actions/checkout's fork-safety check for workflow_run events.
+          git clone --depth 1 "https://github.com/${{ github.repository }}.git" .
+          git fetch origin "$sha"
+          git checkout "$sha"
 
       - name: Setup Node
         uses: actions/setup-node@v4
