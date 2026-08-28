@@ -79,8 +79,16 @@ jobs:
             echo "Workflow run head_sha: ${{ github.event.workflow_run.head_sha }}"
             echo "Workflow run head_branch: ${{ github.event.workflow_run.head_branch }}"
             
-            # Use gh api to get the specific PR for this actor
-            PR_DATA=$(gh api "repos/${{ github.repository }}/pulls?state=open&sort=updated&per_page=100" 2>/dev/null || echo "[]")
+            # Check if gh CLI is available
+            if command -v gh &>/dev/null; then
+              echo "gh CLI is available"
+              PR_DATA=$(gh api "repos/${{ github.repository }}/pulls?state=open&sort=updated&per_page=100" 2>/dev/null || echo "[]")
+            else
+              echo "gh CLI not available, using curl"
+              PR_DATA=$(curl -s "https://api.github.com/repos/${{ github.repository }}/pulls?state=open&sort=updated&per_page=100" \
+                -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                -H "Accept: application/vnd.github.v3+json" 2>/dev/null || echo "[]")
+            fi
             echo "PR data length: ${#PR_DATA}"
             
             # Extract PR SHA using node (more reliable than jq in this context)
