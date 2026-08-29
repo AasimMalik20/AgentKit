@@ -2,16 +2,18 @@ name: Validate PR — Studio runtime check (Phase 2, testing)
 
 # Phase 2 — Lamatic Studio runtime validation.
 # Triggers:
-#   1. Automatically after Phase 1 (validate-pr.yml) passes on a PR
+#   1. Automatically on every PR that touches kits/ (parallel with Phase 1)
 #   2. When a maintainer comments /validate on any open PR
 #
 # Sends the full kit payload including raw .ts flow file contents
 # to the Studio validation endpoint.
 
 on:
-  workflow_run:
-    workflows: ['Validate PR Contribution']
-    types: [completed]
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened]
+    paths:
+      - 'kits/**'
+      - '.github/workflows/validate-pr-studio.yml'
   issue_comment:
     types: [created]
 
@@ -20,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     if: |
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'pull_request_target' && startsWith(github.event.pull_request.title, 'feat:')) ||
       (github.event_name == 'issue_comment' &&
        github.event.issue.pull_request != null &&
        contains(github.event.comment.body, '/validate'))
@@ -30,11 +32,13 @@ jobs:
       issues: write
 
     steps:
-      - name: Checkout base repo
+      - name: Checkout PR head
         uses: actions/checkout@v4
         with:
-          ref: main
-          fetch-depth: 1
+          ref: ${{ github.event_name == 'issue_comment' && github.event.pull_request.head.sha || github.event.pull_request.head.sha }}
+          repository: ${{ github.event_name == 'issue_comment' && github.event.pull_request.head.repo.full_name || github.repository }}
+          fetch-depth: 0
+          allow-unsafe-pr-checkout: true
 
       - name: Get PR details (for comment trigger)
         id: pr_info
@@ -65,83 +69,6 @@ jobs:
             --method POST \
             -f body=":satellite: Running Studio validation — results will appear here shortly." || true
 
-      - name: Fetch PR head (for workflow_run)
-        if: github.event_name == 'workflow_run'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # For workflow_run events, github.event.workflow_run.head_sha is the
-          # base repo's main branch SHA, not the PR head. We must fetch PR info
-          # from the GitHub API using the triggering actor and repository.
-          echo "Event: ${{ github.event_name }}"
-          echo "Repository: ${{ github.repository }}"
-          echo "Triggering actor: ${{ github.event.triggering_actor.login }}"
-          echo "Workflow run head_sha: ${{ github.event.workflow_run.head_sha }}"
-          echo "Workflow run head_branch: ${{ github.event.workflow_run.head_branch }}"
-          
-          # Use GitHub API to get PR list
-          PR_DATA=$(curl -s "https://api.github.com/repos/${{ github.repository }}/pulls?state=open&sort=updated&per_page=100" \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" 2>/dev/null || echo "[]")
-          echo "PR data length: ${#PR_DATA}"
-          echo "PR data preview: ${PR_DATA:0:200}"
-          
-          # Extract PR SHA using node
-          PR_SHA=$(echo "$PR_DATA" | node -e "
-            let d = '';
-            process.stdin.on('data', c => d += c);
-            process.stdin.on('end', () => {
-              try {
-                const pulls = JSON.parse(d);
-                const actor = '${{ github.event.triggering_actor.login }}';
-                console.log('Found', pulls.length, 'open PRs');
-                const pr = pulls.find(p => p.user.login === actor);
-                if (pr) {
-                  console.log('PR found:', pr.number, 'SHA:', pr.head.sha);
-                  console.log(pr.head.sha);
-                } else {
-                  console.log('No PR found for actor:', actor);
-                  console.log('');
-                }
-              } catch(e) { 
-                console.error('Error:', e.message);
-                console.log(''); 
-              }
-            });
-          ")
-          
-          if [ -z "$PR_SHA" ]; then
-            echo "ERROR: Could not find PR SHA from API"
-            exit 1
-          fi
-          
-          # Get fork URL from PR head repo
-          fork_url=$(echo "$PR_DATA" | node -e "
-            let d = '';
-            process.stdin.on('data', c => d += c);
-            process.stdin.on('end', () => {
-              try {
-                const pulls = JSON.parse(d);
-                const pr = pulls.find(p => p.head.sha === '$PR_SHA');
-                if (pr) {
-                  console.log(pr.head.repo.clone_url);
-                } else {
-                  console.log('${{ github.repository }}.git');
-                }
-              } catch(e) { 
-                console.log('${{ github.repository }}.git'); 
-              }
-            });
-          ")
-          
-          echo "PR SHA: $PR_SHA"
-          echo "Fork URL: $fork_url"
-          
-          # Fetch the PR head commit from the fork
-          git remote add fork "$fork_url" 2>/dev/null || true
-          git fetch fork "$PR_SHA"
-          git checkout "$PR_SHA"
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -150,7 +77,7 @@ jobs:
       - name: Detect changed kits
         id: detect
         env:
-          BASE_REF: ${{ github.event_name == 'issue_comment' && steps.pr_info.outputs.base_ref || github.event.workflow_run.pull_requests[0].base.ref || 'main' }}
+          BASE_REF: ${{ github.event_name == 'issue_comment' && steps.pr_info.outputs.base_ref || github.event.pull_request.base.ref }}
         run: |
           git fetch origin "$BASE_REF"
           MERGE_BASE=$(git merge-base "origin/$BASE_REF" HEAD)
@@ -182,7 +109,7 @@ jobs:
         id: studio
         env:
           LAMATIC_VALIDATION_ENDPOINT: 'https://studio.lamatic.ai/api/agentkit/validate-pr'
-          HEAD_SHA: ${{ github.event_name == 'issue_comment' && steps.pr_info.outputs.head_sha || github.event.workflow_run.head_sha }}
+          HEAD_SHA: ${{ github.event_name == 'issue_comment' && steps.pr_info.outputs.head_sha || github.event.pull_request.head.sha }}
         run: |
           KITS="${{ steps.detect.outputs.kits }}"
           if [ -z "$KITS" ]; then
@@ -359,7 +286,7 @@ jobs:
         if: always() && steps.studio.outputs.skipped != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event_name == 'issue_comment' && steps.pr_info.outputs.pr_number || github.event.workflow_run.pull_requests[0].number }}
+          PR_NUMBER: ${{ github.event_name == 'issue_comment' && steps.pr_info.outputs.pr_number || github.event.pull_request.number }}
           REPO: ${{ github.repository }}
           VALIDATION_FAILED: ${{ steps.studio.outputs.validation_failed }}
         run: |
